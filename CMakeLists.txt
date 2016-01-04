@@ -41,6 +41,86 @@ if(GUROBI_FOUND)
     include_directories(${GUROBI_INCLUDE_DIR})
 endif()
 
+
+##############################################################################
+# Boost Python vigra vigra support 
+##############################################################################
+OPTION(BUILD_PYTHON "build python bindings" ON)
+if(BUILD_PYTHON)
+    #--------------------------------------------------------------
+    # vigra
+    #--------------------------------------------------------------
+    FIND_PACKAGE(VIGRA REQUIRED)
+    include_directories(${VIGRA_INCLUDE_DIR})
+
+    #--------------------------------------------------------------
+    # Boost
+    #--------------------------------------------------------------
+    find_package(Boost 1.47 REQUIRED)
+    find_package(Boost COMPONENTS python REQUIRED)
+
+    #--------------------------------------------------------------
+    # Python Lib
+    #--------------------------------------------------------------
+    find_package (PythonLibs REQUIRED)
+    include_directories(
+        ${PYTHON_INCLUDE_DIRS}
+        ${PYTHON_NUMPY_INCLUDE_DIR}
+        ${Boost_INCLUDE_DIR}
+        ${Boost_PYTHON_INCLUDE_DIR}
+    )
+
+
+    add_library( _graph SHARED  
+        src/andres/graph/python/graph_module.cxx
+        src/andres/graph/python/grid_graph.cxx
+        src/andres/graph/python/graph.cxx
+        src/andres/graph/python/lifted_mc_model.cxx
+        src/andres/graph/python/lifted_mc.cxx
+        # lifted mc solvers
+        src/andres/graph/python/lifted_mc_parallel_solver.cxx
+    )
+    set_target_properties(_graph PROPERTIES PREFIX "")
+
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/python/graph)
+
+
+    add_custom_target(copy_python__init__ ALL#POST_BUILD
+        COMMAND cmake -E copy_if_different 
+        ${CMAKE_SOURCE_DIR}/src/andres/graph/python/module/__init__.py 
+        ${CMAKE_BINARY_DIR}/python/graph/__init__.py)
+
+    ADD_CUSTOM_COMMAND(
+            TARGET _graph
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} ARGS -E copy_if_different $<TARGET_FILE:_graph> ${CMAKE_BINARY_DIR}/python/graph/
+            COMMENT "Copying target _graph to temporary module directory")
+
+    #DEPENDS _graph )
+
+    #add_custom_target(copy_python_test POST_BUILD
+    #COMMAND cmake -E copy_if_different ${CMAKE_SOURCE_DIR}/test_graph.py ${CMAKE_BINARY_DIR}/test_graph.py
+    #DEPENDS _graph )
+
+
+    #--------------------------------------------------------------
+    # Link libraries
+    #--------------------------------------------------------------
+    find_library(RT rt)
+    target_link_libraries( _graph
+        ${Boost_PYTHON_LIBRARIES}
+        ${VIGRA_IMPEX_LIBRARY}
+        ${VIGRA_NUMPY_CORE_LIBRARY}
+    )
+
+
+
+
+endif()
+
+
+
+
 ##############################################################################
 # C++11 support
 ##############################################################################
@@ -106,6 +186,10 @@ if(COMPILER_SUPPORTS_CXX0X OR COMPILER_SUPPORTS_CXX11)
 
     add_executable(test-graph-multicut-lifted-greedy-additive src/andres/graph/unit-test/multicut-lifted/greedy-additive.cxx ${headers})
     add_test(test-graph-multicut-lifted-greedy-additive test-graph-multicut-lifted-greedy-additive)
+
+    add_executable(test-graph-multicut-lifted-fusion-move-mc src/andres/graph/unit-test/multicut-lifted/fusion_move_mc.cxx ${headers})
+    add_test(test-graph-multicut-lifted-fusion-move-mc test-graph-multicut-lifted-fusion-move-mc)
+
 
     add_executable(test-graph-pq src/andres/graph/unit-test/pq.cxx ${headers})
     add_test(test-graph-pq test-graph-pq)

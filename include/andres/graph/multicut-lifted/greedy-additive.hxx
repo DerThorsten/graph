@@ -21,13 +21,18 @@ void greedyAdditiveEdgeContraction(
     const ORIGGRAPH& original_graph,
     const LIFTGRAPH& lifted_graph,
     EVA const& edge_values,
-    ELA& edge_labels
+    ELA& edge_labels,
+    int stoppingPoint = -1
 ) {
     class DynamicGraph {
     public:
         DynamicGraph(size_t n)
-            :   vertices_(n)
+            :   vertices_(n),
+                numberOfVertices_(n)
             {}
+        std::size_t numberOfVertices()const{
+            return numberOfVertices_;
+        }
         bool edgeExists(size_t a, size_t b) const
             {
                 return !vertices_[a].empty() && vertices_[a].find(b) != vertices_[a].end();
@@ -45,6 +50,7 @@ void greedyAdditiveEdgeContraction(
                 for (auto& p : vertices_[v])
                     vertices_[p.first].erase(v);
 
+                --numberOfVertices_;
                 vertices_[v].clear();
             }
         void setEdgeWeight(size_t a, size_t b, typename EVA::value_type w)
@@ -54,6 +60,7 @@ void greedyAdditiveEdgeContraction(
             }
 
     private:
+        size_t numberOfVertices_;
         std::vector<std::map<size_t, typename EVA::value_type>> vertices_;
     };
 
@@ -107,6 +114,11 @@ void greedyAdditiveEdgeContraction(
     andres::Partition<size_t> partition(original_graph.numberOfVertices());
 
     while (!Q.empty()) {
+        if(stoppingPoint!=-1){
+            if(original_graph_cp.numberOfVertices()<=stoppingPoint){
+                break;
+            }
+        }
         auto edge = Q.top();
         Q.pop();
 
